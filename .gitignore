@@ -33,3 +33,16 @@ dist-ssr
 venv/
 .venv/
 .env
+# Python
+venv/
+.venv/
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+
+# Python cache
+__pycache__/
+*.pyc
