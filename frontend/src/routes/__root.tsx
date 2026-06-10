@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  Outlet,
   Link,
   createRootRouteWithContext,
   useRouter,
@@ -13,6 +12,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppLayout } from "@/components/AppLayout";
 import { ThemeProvider } from "@/lib/theme";
+import { AuthProvider } from "@/context/AuthContext";
 
 function NotFoundComponent() {
   return (
@@ -119,9 +119,11 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AppLayout />
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          <AppLayout />
+        </ThemeProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

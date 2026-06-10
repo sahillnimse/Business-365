@@ -1,43 +1,55 @@
 # ============================================================
-# config.py — All settings in one place
+# config.py — Non-secret application settings
+#
+# Secrets (Azure credentials, JWT keys) are in backend/.env
+# and loaded automatically by auth.py via python-dotenv.
 # ============================================================
-# LOCAL FILE PATH (current — reads Excel files from your machine)
-# Change this to point to wherever the client stores the files
+import os
+from dotenv import load_dotenv
+
+load_dotenv()  # reads backend/.env
+
+# ============================================================
+# LOCAL FILE PATH
+# ============================================================
 LOCAL_DATA_PATH = "./data"
 
 FILE_NAMES = {
-    "item_master":    "Item_Master.xlsx",
-    "code_mapping":   "Code_Mapping_Table.xlsx",
-    "po_file":        "Sample_PO_File.xlsx",
+    "item_master":  "Item_Master.xlsx",
+    "code_mapping": "Code_Mapping_Table.xlsx",
+    "po_file":      "Sample_PO_File.xlsx",
 }
 
 # ============================================================
-# MICROSOFT AZURE CREDENTIALS (plug in when ready)
+# MICROSOFT AZURE — read from .env, no hard-coded secrets
 # ============================================================
 AZURE = {
-    "tenant_id":     "YOUR_TENANT_ID",        # Azure AD → Overview → Tenant ID
-    "client_id":     "YOUR_CLIENT_ID",        # App Registration → Application (client) ID
-    "client_secret": "YOUR_CLIENT_SECRET",    # App Registration → Certificates & Secrets
+    "tenant_id":     os.environ.get("AZURE_TENANT_ID", ""),
+    "client_id":     os.environ.get("AZURE_CLIENT_ID", ""),
+    "client_secret": os.environ.get("AZURE_CLIENT_SECRET", ""),
 }
 
+# Local dev JWT secret (also from .env)
+DUMMY_JWT_SECRET = os.environ.get("DUMMY_JWT_SECRET", "dummy-secret-key")
+
 # ============================================================
-# SHAREPOINT / ONEDRIVE (plug in when ready)
+# SHAREPOINT / ONEDRIVE
 # ============================================================
 SHAREPOINT = {
-    "site_url":      "https://xarkaaitechnologiesprivatel.sharepoint.com/sites/ItemCodeValidation-Dev",
-    "folder_path":   "/PO-Validation/",
+    "site_url":    "https://xarkaaitechnologiesprivatel.sharepoint.com/sites/ItemCodeValidation-Dev",
+    "folder_path": "/PO-Validation/",
 }
 
 # ============================================================
-# BUSINESS CENTRAL (plug in when ready)
+# BUSINESS CENTRAL
 # ============================================================
 BC = {
-    "environment":   "production",            # or "sandbox"
-    "company_name":  "YOUR_COMPANY_NAME",     # as shown in BC Settings
-    "base_url":      "https://api.businesscentral.dynamics.com/v2.0",
+    "environment":  "production",
+    "company_name": os.environ.get("BC_COMPANY_NAME", "YOUR_COMPANY_NAME"),
+    "base_url":     "https://api.businesscentral.dynamics.com/v2.0",
 }
 
 # ============================================================
-# DATA SOURCE — switch between "local", "sharepoint", "bc"
+# DATA SOURCE — "local" | "sharepoint" | "bc"
 # ============================================================
-DATA_SOURCE = "local"   # change to "sharepoint" or "bc" when ready
+DATA_SOURCE = os.environ.get("DATA_SOURCE", "local")

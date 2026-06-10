@@ -1,101 +1,38 @@
-from fastapi import FastAPI, HTTPException, Depends, Request
+# ============================================================
+# main.py — FastAPI application
+#
+# Authentication helpers (verify_ms_token, get_current_user,
+# check_auth_soft) are implemented in auth.py and re-exported
+# here.  Secrets are loaded from backend/.env via python-dotenv.
+# ============================================================
+
+from fastapi import FastAPI, HTTPException, Depends, Request, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import datetime, timezone, timedelta
 import jwt
-import requests
 
 from data_loader import get_item_master, get_code_mapping, get_po_lines
-from config import DATA_SOURCE, SHAREPOINT, BC, AZURE
+from config import DATA_SOURCE, SHAREPOINT, BC
+from auth import (
+    get_current_user,
+    check_auth_soft,
+    verify_ms_token,
+    DUMMY_JWT_SECRET,
+)
+
+# Re-export for callers that expect these names directly from main
+__all__ = ["verify_ms_token", "get_current_user", "check_auth_soft", "DUMMY_JWT_SECRET"]
 
 app = FastAPI(title="Business 365 API", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    #allow_origins=["http://localhost:5173", "http://localhost:4173"],
-    allow_origins=["*"],
+    allow_origins=["*"],          # Tighten to your domain in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# ============================================================
-# MICROSOFT TOKEN VERIFICATION
-# ============================================================
-security = HTTPBearer(auto_error=False)
-
-_jwks_cache: dict = {}
-
-def get_ms_jwks(tenant_id: str) -> dict:
-    """Fetch Microsoft's public keys (cached)."""
-    if tenant_id in _jwks_cache:
-        return _jwks_cache[tenant_id]
-    oid_config_url = f"https://login.microsoftonline.com/{tenant_id}/v2.0/.well-known/openid-configuration"
-    oid_config = requests.get(oid_config_url, timeout=10).json()
-    jwks = requests.get(oid_config["jwks_uri"], timeout=10).json()
-    _jwks_cache[tenant_id] = jwks
-    return jwks
-
-
-def verify_ms_token(token: str) -> dict:
-    """
-    Verify a Microsoft-issued JWT.
-    Returns decoded claims on success, raises HTTPException on failure.
-    """
-    try:
-        unverified = jwt.decode(token, options={"verify_signature": False})
-        tenant_id = unverified.get("tid", AZURE.get("tenant_id", "common"))
-
-        jwks = get_ms_jwks(tenant_id)
-        header = jwt.get_unverified_header(token)
-        public_key = None
-        for key_data in jwks.get("keys", []):
-            if key_data.get("kid") == header.get("kid"):
-                public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key_data)
-                break
-
-        if not public_key:
-            raise HTTPException(status_code=401, detail="Token signing key not found")
-
-        claims = jwt.decode(
-            token,
-            key=public_key,
-            algorithms=["RS256"],
-            audience=AZURE.get("client_id"),
-            options={"verify_exp": True},
-        )
-        return claims
-
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token has expired")
-    except jwt.InvalidTokenError as e:
-        raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
-    except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Token verification failed: {e}")
-
-
-def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-) -> dict:
-    """
-    Dependency — returns user claims from verified MS token.
-    Falls back to a local dev user when AZURE credentials aren't configured.
-    """
-    client_id = AZURE.get("client_id", "")
-    if not client_id or client_id == "YOUR_CLIENT_ID":
-        return {
-            "sub": "local-dev",
-            "name": "Local Developer",
-            "preferred_username": "dev@localhost",
-            "tid": "local",
-        }
-
-    if not credentials:
-        raise HTTPException(status_code=401, detail="Authorization header required")
-
-    return verify_ms_token(credentials.credentials)
 
 
 # ============================================================
@@ -114,19 +51,32 @@ def health():
 
 
 # ============================================================
-# AUTH — verify MS token and return user info
+# AUTH — soft check, never returns 401
+# The frontend calls this on load to know if the user is logged in.
 # ============================================================
 @app.get("/auth/me")
-def auth_me(user: dict = Depends(get_current_user)):
-    return {
-        "authenticated": True,
-        "user": {
-            "id": user.get("sub"),
-            "name": user.get("name"),
-            "email": user.get("preferred_username"),
-            "tenant_id": user.get("tid"),
-        },
+def auth_me(result: dict = Depends(check_auth_soft)):
+    return result
+
+
+# ============================================================
+# DEV LOGIN — dummy JWT for local development only
+# Skipped when AZURE_CLIENT_ID is configured (real credentials).
+# The frontend falls back to this endpoint when MSAL is unavailable.
+# ============================================================
+@app.post("/login")
+def login(username: str = Body(..., embed=True)):
+    """Return a dummy JWT signed with DUMMY_JWT_SECRET (local dev only)."""
+    claims = {
+        "sub": username,
+        "name": username,
+        "preferred_username": f"{username}@localhost",
+        "tid": "local-dev",
+        "exp": int((datetime.utcnow() + timedelta(hours=1)).timestamp()),
+        "iat": int(datetime.utcnow().timestamp()),
     }
+    token = jwt.encode(claims, DUMMY_JWT_SECRET, algorithm="HS256")
+    return {"access_token": token, "token_type": "bearer"}
 
 
 # ============================================================
@@ -209,11 +159,6 @@ def get_po_lines_endpoint(po_number: str = None, user: dict = Depends(get_curren
 # VALIDATION — core logic
 # ============================================================
 def run_validation_logic(user: dict) -> dict:
-    """
-    Pure validation logic extracted so it can be called both
-    by the /validate endpoint and the /dashboard endpoint
-    without going through FastAPI's Depends() injection.
-    """
     item_master_df = get_item_master()
     code_mapping_df = get_code_mapping()
     po_df = get_po_lines()
@@ -303,7 +248,6 @@ def validate(user: dict = Depends(get_current_user)):
 
 # ============================================================
 # DASHBOARD SUMMARY
-# — calls helper functions directly, not FastAPI route handlers
 # ============================================================
 @app.get("/dashboard")
 def dashboard(user: dict = Depends(get_current_user)):
@@ -344,7 +288,7 @@ def dashboard(user: dict = Depends(get_current_user)):
 
 
 # ============================================================
-# FALLBACK — catch-all 404 for unknown API routes
+# FALLBACK — catch-all error handlers
 # ============================================================
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: HTTPException):

@@ -38,6 +38,12 @@ export async function apiGet<T = unknown>(path: string): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
   if (authToken) headers.Authorization = `Bearer ${authToken}`;
   const res = await fetch(buildUrl(path), { headers });
+  if (res.status === 401) {
+    // Token missing or expired — trigger Microsoft login
+    const { login } = await import("./msal");
+    await login();
+    throw new Error("Session expired — please sign in again.");
+  }
   if (!res.ok) {
     let detail = `${res.status} ${res.statusText}`;
     try {
@@ -98,7 +104,12 @@ export interface DashboardResponse {
   mappings: { total: number };
 }
 export interface MeResponse {
-  email?: string;
-  name?: string;
+  authenticated: boolean;
+  user?: {
+    id?: string;
+    name?: string;
+    email?: string;
+    [k: string]: unknown;
+  };
   [k: string]: unknown;
 }

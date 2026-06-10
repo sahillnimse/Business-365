@@ -18,7 +18,8 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { MODULES } from "@/lib/modules";
-import { apiGet, loadStoredToken, type MeResponse } from "@/lib/api";
+import { apiGet } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/lib/theme";
 
 const ICONS = {
@@ -32,15 +33,10 @@ const ICONS = {
 
 export function AppLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const [tokenLoaded, setTokenLoaded] = useState(false);
   const { theme, toggle } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    loadStoredToken();
-    setTokenLoaded(true);
-  }, []);
+  const { user, isAuthenticated, isLoading, login, logout } = useAuth();
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -50,13 +46,6 @@ export function AppLayout() {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  const me = useQuery({
-    queryKey: ["me"],
-    queryFn: () => apiGet<MeResponse>("/auth/me"),
-    enabled: tokenLoaded,
-    retry: false,
-  });
-
   const health = useQuery({
     queryKey: ["health"],
     queryFn: () => apiGet<{ status?: string }>("/health"),
@@ -65,8 +54,8 @@ export function AppLayout() {
   });
 
   const isActive = (p: string) => (p === "/" ? pathname === "/" : pathname.startsWith(p));
-  const userName = (me.data?.name as string) || "Demo User";
-  const userEmail = (me.data?.email as string) || "demo.user@business365.com";
+  const userName = user?.name || "Demo User";
+  const userEmail = user?.email || "demo.user@business365.com";
   const initials = userName.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
   const currentLabel = MODULES.find((m) => isActive(m.path))?.label ?? (pathname === "/profile" ? "My Profile" : "Business 365");
 
@@ -149,6 +138,11 @@ export function AppLayout() {
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </IconBtn>
             <IconBtn title="Settings"><Link to="/settings"><Settings className="h-4 w-4" /></Link></IconBtn>
+            {!isLoading && !isAuthenticated && (
+              <IconBtn title="Sign in with Microsoft" onClick={login}>
+                <ChevronDown className="h-4 w-4" />
+              </IconBtn>
+            )}
 
             <div className="relative ml-1" ref={menuRef}>
               <button
@@ -186,7 +180,7 @@ export function AppLayout() {
                       <span className="text-xs text-muted-foreground capitalize">{theme}</span>
                     </button>
                     <div className="my-1 border-t border-border" />
-                    <button className="block w-full rounded-md px-3 py-2 text-left hover:bg-accent">
+                    <button onClick={logout} className="block w-full rounded-md px-3 py-2 text-left hover:bg-accent">
                       Sign out
                     </button>
                   </div>

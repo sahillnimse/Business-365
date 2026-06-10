@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { Mail, Building2, Shield, Globe, Calendar, BadgeCheck, Phone, MapPin } from "lucide-react";
-import { apiGet, type MeResponse } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { PageHeader } from "@/components/TabBar";
 
 export const Route = createFileRoute("/profile")({
@@ -15,16 +14,12 @@ export const Route = createFileRoute("/profile")({
 });
 
 function ProfilePage() {
-  const me = useQuery({
-    queryKey: ["me"],
-    queryFn: () => apiGet<MeResponse>("/auth/me"),
-    retry: false,
-  });
+  const { user } = useAuth();
 
-  const name = (me.data?.name as string) || "Demo User";
-  const email = (me.data?.email as string) || "demo.user@business365.com";
-  const role = (me.data?.role as string) || "Administrator";
-  const company = (me.data?.company as string) || "CRONUS USA, Inc.";
+  const name = user?.name || "Demo User";
+  const email = user?.email || "demo.user@business365.com";
+  const role = user?.role || "Administrator";
+  const company = user?.company || "CRONUS USA, Inc.";
   const initials = name
     .split(" ")
     .map((s) => s[0])
