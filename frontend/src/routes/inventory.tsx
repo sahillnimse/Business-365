@@ -27,7 +27,11 @@ interface ItemsResp {
 
 function InventoryPage() {
   const { tab = "items" } = Route.useSearch();
-  const q = useQuery({ queryKey: ["items"], queryFn: () => apiGet<ItemsResp>("/items") });
+  const q = useQuery({
+    queryKey: ["items"],
+    queryFn: () => apiGet<ItemsResp>("/items"),
+    refetchInterval: 30_000,
+  });
 
   return (
     <div>
@@ -94,8 +98,8 @@ function StatusPill({ value }: { value: string }) {
     <span
       className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${
         active
-          ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
-          : "border-amber-500/30 bg-amber-500/15 text-amber-300"
+          ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+          : "border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300"
       }`}
     >
       {value || "—"}

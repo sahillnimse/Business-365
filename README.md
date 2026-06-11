@@ -5,6 +5,19 @@ with Microsoft 365 SSO login, light/dark theme, and live BC API integration.
 
 ---
 
+## Customer workflow
+
+This project was built for a customer-facing item-code issue: item codes were either being generated as duplicates or were not being generated at all. The validator checks uploaded document lines against the item master before the document moves forward.
+
+- If an item code is already present in the master sheet, the document is rejected and the validation result prepares a Teams / Outlook message saying the item code already exists.
+- If an item code is repeated inside the uploaded document, the document is rejected and the user is informed that a duplicate item code was found.
+- If an item code is missing, the document is rejected and the user is informed that the item code was not generated.
+- If an item code is not present in the master sheet and is unique in the document, the document passes and the validation result prepares a Teams / Outlook pass message.
+
+The CSV Upload module accepts Excel workbooks or CSV files. Workbooks can contain more than three sheets; each sheet is previewed, recognized sheets are mapped into Item Master, Code Mapping, or Document Lines, and the mapped data feeds Inventory, Purchasing, Finance, and Validation.
+
+---
+
 ## What's new in v2.0
 
 - **Microsoft login** — MSAL-based SSO, verifies Azure AD tokens on the backend
@@ -46,7 +59,7 @@ Opens at `http://localhost:5173`.
 1. Go to [Azure Portal → App registrations](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps) → **New registration**
 2. Name: `BC365 PO Validator`
 3. Supported account types: **Accounts in this organizational directory only**
-4. Redirect URI: **Single-page application (SPA)** → `http://localhost:5173`
+4. Redirect URI: **Single-page application (SPA)** → `http://localhost:8080`
 5. Click **Register**
 
 ### Configure

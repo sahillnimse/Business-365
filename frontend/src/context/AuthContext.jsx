@@ -1,8 +1,29 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { setAuthToken, apiGet, loadStoredToken } from "@/lib/api";
-import { initializeMsal, login as msalLogin, logout as msalLogout } from "@/lib/msal";
+import { apiGet, loadStoredToken, resetStoredToken } from "@/lib/api";
+import {
+  initializeMsal,
+  login as msalLogin,
+  logout as msalLogout,
+  getMsalAccountProfile,
+  refreshApiToken,
+  refreshBcToken,
+} from "@/lib/msal";
+import { mergeUserProfile } from "@/lib/user";
 
 const AuthContext = createContext(null);
+
+async function resolveUser() {
+  await refreshBcToken();
+  const [me, msal] = await Promise.all([
+    apiGet("/auth/me"),
+    getMsalAccountProfile(),
+  ]);
+
+  if (me?.authenticated && me?.user) {
+    return mergeUserProfile(me.user, msal);
+  }
+  return null;
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -10,19 +31,70 @@ export function AuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const checkAuth = useCallback(async () => {
+    let authError = null;
     try {
-      const me = await apiGet("/auth/me");
-      if (me?.authenticated && me?.user) {
-        setUser(me.user);
+      let merged = await resolveUser();
+      if (merged) {
+        setUser(merged);
         setIsAuthenticated(true);
-        return true;
+        // Enrich with Microsoft Graph profile (photo, job title, etc.) in the background.
+        getMsalAccountProfile()
+          .then((msal) => {
+            const enriched = mergeUserProfile(merged, msal);
+            if (enriched) setUser(enriched);
+          })
+          .catch(() => {});
+        return { ok: true };
       }
-    } catch {
-      // Not authenticated
+
+      const me = await apiGet("/auth/me");
+      if (me?.detail) {
+        authError = typeof me.detail === "string" ? me.detail : JSON.stringify(me.detail);
+      }
+    } catch (err) {
+      authError = err instanceof Error ? err.message : "Authentication check failed";
     }
+
+    await refreshBcToken();
+    const refreshed = await refreshApiToken();
+    if (refreshed) {
+      try {
+        let merged = await resolveUser();
+        if (merged) {
+          setUser(merged);
+          setIsAuthenticated(true);
+          getMsalAccountProfile()
+            .then((msal) => {
+              const enriched = mergeUserProfile(merged, msal);
+              if (enriched) setUser(enriched);
+            })
+            .catch(() => {});
+          return { ok: true };
+        }
+      } catch (err) {
+        authError = err instanceof Error ? err.message : authError;
+      }
+    }
+
+    resetStoredToken();
     setUser(null);
     setIsAuthenticated(false);
-    return false;
+    return { ok: false, error: authError };
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    try {
+      const profile = await apiGet("/auth/profile");
+      const msal = await getMsalAccountProfile();
+      if (profile?.user) {
+        const merged = mergeUserProfile(profile.user, msal);
+        setUser(merged);
+        return merged;
+      }
+    } catch {
+      /* keep existing user */
+    }
+    return null;
   }, []);
 
   useEffect(() => {
@@ -42,8 +114,22 @@ export function AuthProvider({ children }) {
   }, [checkAuth]);
 
   const login = useCallback(async () => {
-    await msalLogin();
-    await checkAuth();
+    try {
+      const loginResult = await msalLogin();
+      if (loginResult === "redirecting") return;
+
+      const authResult = await checkAuth();
+      if (!authResult.ok) {
+        throw new Error(
+          authResult.error ||
+            "Microsoft sign-in succeeded but the API rejected the token. Try signing in again."
+        );
+      }
+    } catch (err) {
+      setUser(null);
+      setIsAuthenticated(false);
+      throw err;
+    }
   }, [checkAuth]);
 
   const logout = useCallback(async () => {
@@ -53,7 +139,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

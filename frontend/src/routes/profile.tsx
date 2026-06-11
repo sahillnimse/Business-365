@@ -1,107 +1,173 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Mail, Building2, Shield, Globe, Calendar, BadgeCheck, Phone, MapPin } from "lucide-react";
+import { useEffect } from "react";
+import {
+  Mail,
+  Building2,
+  Shield,
+  Globe,
+  Calendar,
+  BadgeCheck,
+  User,
+  KeyRound,
+  Fingerprint,
+  BriefcaseBusiness,
+  MapPin,
+  Phone,
+  LogOut,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { PageHeader } from "@/components/TabBar";
+import { formatTokenTime, userDisplayName } from "@/lib/user";
+import { MicrosoftLogo } from "@/components/MicrosoftSignInButton";
+import { UserAvatar } from "@/components/UserAvatar";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "My Profile — Business 365" },
-      { name: "description", content: "Account details and profile information." },
+      { title: "My Profile - Business 365" },
+      { name: "description", content: "Account details from your Microsoft sign-in." },
     ],
   }),
   component: ProfilePage,
 });
 
 function ProfilePage() {
-  const { user } = useAuth();
+  const { user, refreshProfile, logout } = useAuth();
 
-  const name = user?.name || "Demo User";
-  const email = user?.email || "demo.user@business365.com";
-  const role = user?.role || "Administrator";
-  const company = user?.company || "CRONUS USA, Inc.";
-  const initials = name
-    .split(" ")
-    .map((s) => s[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  useEffect(() => {
+    refreshProfile?.();
+  }, [refreshProfile]);
+
+  const name = userDisplayName(user);
+  const primaryRole = user?.roles?.[0];
+  const roleLabel = primaryRole || user?.job_title || "Microsoft user";
 
   return (
     <div>
-      <PageHeader title="My Profile" subtitle="Account details and preferences." />
+      <PageHeader
+        title="My Profile"
+        subtitle="Details from your Microsoft Entra ID sign-in and Microsoft Graph profile."
+        actions={
+          <button
+            type="button"
+            onClick={() => logout()}
+            className="inline-flex h-9 items-center gap-2 rounded-lg border border-border/80 px-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
+        }
+      />
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-        <div className="h-28 bg-gradient-to-r from-primary via-primary/80 to-primary/60" />
-        <div className="-mt-12 flex flex-wrap items-end gap-5 px-6 pb-6">
-          <div className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-card bg-primary text-3xl font-semibold text-primary-foreground shadow-lg">
-            {initials}
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-semibold tracking-tight">{name}</h2>
+      <div className="profile-hero overflow-hidden rounded-2xl border border-border/80 bg-card shadow-md">
+        <div className="profile-hero-banner h-32" />
+        <div className="-mt-14 flex flex-wrap items-end gap-5 px-6 pb-6">
+          <UserAvatar user={user} name={name} size="xl" className="border-4 border-card shadow-lg" />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-2xl font-bold tracking-tight">{name}</h2>
               <BadgeCheck className="h-5 w-5 text-primary" />
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                <MicrosoftLogo className="h-3.5 w-3.5" />
+                Microsoft account
+              </span>
             </div>
-            <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" />{email}</span>
-              <span className="inline-flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />{company}</span>
-              <span className="inline-flex items-center gap-1.5"><Shield className="h-3.5 w-3.5" />{role}</span>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              {user?.email && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5 shrink-0" />
+                  {user.email}
+                </span>
+              )}
+              {user?.tenant_id && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5 shrink-0" />
+                  Tenant {shortId(user.tenant_id)}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1.5">
+                <BriefcaseBusiness className="h-3.5 w-3.5 shrink-0" />
+                {roleLabel}
+              </span>
+              {user?.department && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5 shrink-0" />
+                  {user.department}
+                </span>
+              )}
             </div>
-          </div>
-          <div className="flex gap-2">
-            <button className="rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-accent">Edit profile</button>
-            <button className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90">Manage account</button>
           </div>
         </div>
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <Card title="Account">
-          <Row icon={<Mail className="h-4 w-4" />} label="Email" value={email} />
-          <Row icon={<Phone className="h-4 w-4" />} label="Phone" value="+1 (555) 010-2024" />
-          <Row icon={<Shield className="h-4 w-4" />} label="Role" value={role} />
-          <Row icon={<BadgeCheck className="h-4 w-4" />} label="Status" value={<span className="inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">Active</span>} />
+        <Card title="Microsoft account">
+          <Row icon={<User className="h-4 w-4" />} label="Display name" value={user?.name ?? "-"} />
+          <Row icon={<Mail className="h-4 w-4" />} label="Email / UPN" value={user?.email ?? user?.username ?? "-"} />
+          <Row icon={<User className="h-4 w-4" />} label="Given name" value={user?.given_name ?? "-"} />
+          <Row icon={<User className="h-4 w-4" />} label="Family name" value={user?.family_name ?? "-"} />
+          <Row icon={<BriefcaseBusiness className="h-4 w-4" />} label="Job title" value={user?.job_title ?? "-"} />
+          <Row
+            icon={<BadgeCheck className="h-4 w-4" />}
+            label="Status"
+            value={
+              <span className="inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                Authenticated
+              </span>
+            }
+          />
         </Card>
 
-        <Card title="Organization">
-          <Row icon={<Building2 className="h-4 w-4" />} label="Company" value={company} />
-          <Row icon={<Globe className="h-4 w-4" />} label="Environment" value="Production" />
-          <Row icon={<MapPin className="h-4 w-4" />} label="Region" value="United States (US)" />
-          <Row icon={<Calendar className="h-4 w-4" />} label="Member since" value="Jan 14, 2024" />
+        <Card title="Directory & identity">
+          <Row icon={<Fingerprint className="h-4 w-4" />} label="Object ID" value={mono(user?.object_id)} />
+          <Row icon={<KeyRound className="h-4 w-4" />} label="Subject" value={mono(user?.subject)} />
+          <Row icon={<Building2 className="h-4 w-4" />} label="Tenant ID" value={mono(user?.tenant_id)} />
+          <Row icon={<Globe className="h-4 w-4" />} label="Identity provider" value={user?.identity_provider ?? "Microsoft Entra ID"} />
+          <Row icon={<Building2 className="h-4 w-4" />} label="Department" value={user?.department ?? "-"} />
+          <Row icon={<MapPin className="h-4 w-4" />} label="Office" value={user?.office_location ?? "-"} />
+          <Row
+            icon={<Shield className="h-4 w-4" />}
+            label="App roles"
+            value={user?.roles?.length ? user.roles.join(", ") : "-"}
+          />
         </Card>
 
-        <Card title="Preferences">
-          <Row label="Language" value="English (United States)" />
-          <Row label="Time zone" value="(UTC-05:00) Eastern Time" />
-          <Row label="Date format" value="MM/DD/YYYY" />
-          <Row label="Currency" value="USD ($)" />
+        <Card title="Session">
+          <Row icon={<Calendar className="h-4 w-4" />} label="Signed in at" value={formatTokenTime(user?.issued_at)} />
+          <Row icon={<Calendar className="h-4 w-4" />} label="Token expires" value={formatTokenTime(user?.expires_at)} />
+          <Row icon={<KeyRound className="h-4 w-4" />} label="Token version" value={user?.token_version ?? "-"} />
+          <Row icon={<Shield className="h-4 w-4" />} label="Auth provider" value={user?.auth_provider ?? "microsoft"} />
+          <Row icon={<Phone className="h-4 w-4" />} label="Mobile phone" value={user?.mobile_phone ?? "-"} />
+          <Row icon={<Phone className="h-4 w-4" />} label="Business phone" value={user?.business_phones?.length ? user.business_phones.join(", ") : "-"} />
         </Card>
       </div>
 
-      <div className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
-        <h3 className="mb-4 text-sm font-semibold">Recent activity</h3>
-        <ul className="divide-y divide-border text-sm">
-          {[
-            { t: "Signed in from Chrome on Windows", w: "2 hours ago" },
-            { t: "Ran PO validation batch (124 lines)", w: "Yesterday" },
-            { t: "Updated connection settings", w: "3 days ago" },
-            { t: "Granted access to Inventory module", w: "Last week" },
-          ].map((a) => (
-            <li key={a.t} className="flex items-center justify-between py-2.5">
-              <span>{a.t}</span>
-              <span className="text-xs text-muted-foreground">{a.w}</span>
-            </li>
-          ))}
-        </ul>
+      <div className="theme-surface-raised mt-6 rounded-2xl border border-border/80 p-5">
+        <h3 className="mb-2 text-sm font-semibold">About this profile</h3>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          This information starts with your verified Microsoft ID token, then is enriched from Microsoft Graph
+          using <code className="text-xs">User.Read</code> when your tenant grants that permission.
+        </p>
       </div>
     </div>
   );
 }
 
+function shortId(id?: string) {
+  if (!id) return "-";
+  if (id.length <= 12) return id;
+  return `${id.slice(0, 8)}...`;
+}
+
+function mono(v?: string) {
+  if (!v) return "-";
+  return <span className="font-mono text-xs break-all">{v}</span>;
+}
+
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <h3 className="mb-4 text-sm font-semibold">{title}</h3>
+    <div className="theme-surface-raised rounded-2xl border border-border/80 p-5 shadow-sm">
+      <h3 className="mb-4 text-sm font-semibold text-foreground">{title}</h3>
       <div className="space-y-3">{children}</div>
     </div>
   );
@@ -109,12 +175,12 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 
 function Row({ icon, label, value }: { icon?: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-4 text-sm">
-      <span className="inline-flex items-center gap-2 text-muted-foreground">
+    <div className="flex items-start justify-between gap-4 border-b border-border/40 pb-3 text-sm last:border-0 last:pb-0">
+      <span className="inline-flex shrink-0 items-center gap-2 text-muted-foreground">
         {icon}
         {label}
       </span>
-      <span className="text-right font-medium">{value}</span>
+      <span className="min-w-0 text-right font-medium text-foreground">{value}</span>
     </div>
   );
 }

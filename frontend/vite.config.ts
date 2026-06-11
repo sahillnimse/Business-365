@@ -12,4 +12,17 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    server: {
+      // MSAL PKCE requires crypto.subtle — only available on localhost or HTTPS, not LAN IPs.
+      host: "localhost",
+      port: 8080,
+      strictPort: true,
+    },
+    ssr: {
+      // MSAL is browser-only; never bundle it for the server.
+      noExternal: [],
+      external: ["@azure/msal-browser"],
+    },
+  },
 });

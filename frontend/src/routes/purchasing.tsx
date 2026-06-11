@@ -28,7 +28,11 @@ interface PoResponse {
 
 function PurchasingPage() {
   const { tab = "po-lines" } = Route.useSearch();
-  const q = useQuery({ queryKey: ["po-lines"], queryFn: () => apiGet<PoResponse>("/po-lines") });
+  const q = useQuery({
+    queryKey: ["po-lines"],
+    queryFn: () => apiGet<PoResponse>("/po-lines"),
+    refetchInterval: 10_000,
+  });
 
   return (
     <div>
@@ -154,7 +158,7 @@ function ApprovalsTab({ data }: { data: PoResponse }) {
             <TD>{p.lines}</TD>
             <TD>${p.value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TD>
             <TD>
-              <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-300">
+              <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
                 Pending
               </span>
             </TD>

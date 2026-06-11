@@ -1,8 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, type DashboardResponse } from "@/lib/api";
-import { Spinner, ErrBox, KpiCard } from "@/components/ui-bits";
+import { Spinner, ErrBox, KpiCard, SectionCard } from "@/components/ui-bits";
 import { PageHeader } from "@/components/TabBar";
+import { useAuth } from "@/context/AuthContext";
+import { userDisplayName } from "@/lib/user";
+import { UserAvatar } from "@/components/UserAvatar";
 import {
   PieChart,
   Pie,
@@ -16,6 +19,13 @@ import {
   CartesianGrid,
 } from "recharts";
 
+const CHART_TOOLTIP = {
+  background: "var(--card)",
+  border: "1px solid var(--border)",
+  borderRadius: "0.5rem",
+  color: "var(--foreground)",
+};
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -27,14 +37,30 @@ export const Route = createFileRoute("/")({
 });
 
 function DashboardPage() {
+  const { user } = useAuth();
   const { data, isLoading, error } = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => apiGet<DashboardResponse>("/dashboard"),
+    refetchInterval: 10_000,
   });
+
+  const displayName = userDisplayName(user);
+  const firstName = displayName.split(/\s+/)[0] ?? displayName;
 
   return (
     <div>
       <PageHeader title="Dashboard" subtitle="Live snapshot from the validator service." />
+
+      {user && (
+        <Link
+          to="/profile"
+          className="theme-surface-raised mb-8 flex items-center gap-4 rounded-2xl border border-border/80 p-5 transition-colors hover:bg-accent/30"
+        >
+          <UserAvatar user={user} name={displayName} size="lg" />
+          <h2 className="text-lg font-semibold tracking-tight">Welcome back, {firstName}</h2>
+        </Link>
+      )}
+
       {isLoading && <Spinner label="Loading dashboard…" />}
       {error && <ErrBox error={error} />}
       {data && (
@@ -65,17 +91,16 @@ function DashboardPage() {
           </section>
 
           <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <div className="rounded-2xl border border-border/60 bg-card/40 p-5 backdrop-blur-xl">
-              <h3 className="mb-4 text-sm font-semibold">Validation breakdown</h3>
+            <SectionCard title="Validation breakdown">
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={[
-                        { name: "Pass", value: data.validation.pass, fill: "oklch(0.7 0.17 162)" },
-                        { name: "Auto‑map", value: data.validation.auto_map, fill: "oklch(0.72 0.16 250)" },
-                        { name: "Block inactive", value: data.validation.block_inactive, fill: "oklch(0.78 0.18 70)" },
-                        { name: "Block unknown", value: data.validation.block_unknown, fill: "oklch(0.66 0.22 22)" },
+                        { name: "Pass", value: data.validation.pass, fill: "var(--chart-1)" },
+                        { name: "Auto‑map", value: data.validation.auto_map, fill: "var(--chart-2)" },
+                        { name: "Block inactive", value: data.validation.block_inactive, fill: "var(--chart-3)" },
+                        { name: "Block unknown", value: data.validation.block_unknown, fill: "var(--chart-4)" },
                       ]}
                       dataKey="value"
                       nameKey="name"
@@ -87,20 +112,13 @@ function DashboardPage() {
                         <Cell key={i} />
                       ))}
                     </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        background: "oklch(0.21 0.025 265)",
-                        border: "1px solid oklch(1 0 0 / 0.15)",
-                        borderRadius: "0.5rem",
-                      }}
-                    />
+                    <Tooltip contentStyle={CHART_TOOLTIP} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-            </div>
+            </SectionCard>
 
-            <div className="rounded-2xl border border-border/60 bg-card/40 p-5 backdrop-blur-xl">
-              <h3 className="mb-4 text-sm font-semibold">Purchase orders</h3>
+            <SectionCard title="Purchase orders">
               <div className="grid grid-cols-2 gap-4">
                 <KpiCard label="Total lines" value={data.po.total_lines.toLocaleString()} />
                 <KpiCard label="Total POs" value={data.po.total_pos.toLocaleString()} tone="info" />
@@ -115,11 +133,10 @@ function DashboardPage() {
                   tone="pass"
                 />
               </div>
-            </div>
+            </SectionCard>
           </section>
 
-          <section className="rounded-2xl border border-border/60 bg-card/40 p-5 backdrop-blur-xl">
-            <h3 className="mb-4 text-sm font-semibold">Items by status</h3>
+          <SectionCard title="Items by status">
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -128,21 +145,15 @@ function DashboardPage() {
                     { name: "Inactive", value: data.items.inactive },
                   ]}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.08)" />
-                  <XAxis dataKey="name" stroke="oklch(0.7 0.02 260)" />
-                  <YAxis stroke="oklch(0.7 0.02 260)" />
-                  <Tooltip
-                    contentStyle={{
-                      background: "oklch(0.21 0.025 265)",
-                      border: "1px solid oklch(1 0 0 / 0.15)",
-                      borderRadius: "0.5rem",
-                    }}
-                  />
-                  <Bar dataKey="value" fill="oklch(0.72 0.16 250)" radius={[6, 6, 0, 0]} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="name" stroke="var(--muted-foreground)" />
+                  <YAxis stroke="var(--muted-foreground)" />
+                  <Tooltip contentStyle={CHART_TOOLTIP} />
+                  <Bar dataKey="value" fill="var(--primary)" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </section>
+          </SectionCard>
         </div>
       )}
     </div>

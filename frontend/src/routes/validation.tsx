@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import { apiGet, type ValidationResponse, type ValidationResultRow } from "@/lib/api";
 import { Spinner, ErrBox, Empty, KpiCard, TableWrap, THead, TR, TD, StatusBadge } from "@/components/ui-bits";
@@ -13,8 +13,8 @@ export const Route = createFileRoute("/validation")({
   validateSearch: tabSchema,
   head: () => ({
     meta: [
-      { title: "Validation — PO‑Validator" },
-      { name: "description", content: "Run PO validation and review results, history, and settings." },
+      { title: "Validation - PO-Validator" },
+      { name: "description", content: "Run item code validation and review pass/reject results." },
     ],
   }),
   component: ValidationPage,
@@ -25,11 +25,13 @@ interface HistoryRun {
   ranAt: string;
   total: number;
   pass: number;
-  auto_map: number;
-  block_inactive: number;
-  block_unknown: number;
+  rejected: number;
+  duplicate: number;
+  missing_code: number;
 }
+
 const HISTORY_KEY = "po_validation_history";
+
 function loadHistory(): HistoryRun[] {
   if (typeof window === "undefined") return [];
   try {
@@ -45,7 +47,7 @@ function ValidationPage() {
     <div>
       <PageHeader
         title="Validation"
-        subtitle="Run the validator against current PO lines and inspect per‑row results."
+        subtitle="Reject duplicate or already-present item codes, and pass new item codes forward."
       />
       <TabBar moduleId="validation" activeTab={tab} />
       {tab === "run" && <RunTab />}
@@ -59,49 +61,54 @@ function RunTab() {
   const [trigger, setTrigger] = useState(0);
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const lastHistorySignature = useRef("");
 
   const { data, isLoading, error, isFetching } = useQuery({
     queryKey: ["validate", trigger],
     queryFn: async () => {
       const res = await apiGet<ValidationResponse>("/validate");
-      // record history
       try {
+        const signature = `${res.total}:${res.pass}:${res.rejected ?? res.block_unknown}:${res.duplicate ?? 0}:${res.missing_code ?? 0}`;
+        if (signature === lastHistorySignature.current) return res;
+        lastHistorySignature.current = signature;
         const hist = loadHistory();
         hist.unshift({
           id: crypto.randomUUID(),
           ranAt: new Date().toISOString(),
           total: res.total,
           pass: res.pass,
-          auto_map: res.auto_map,
-          block_inactive: res.block_inactive,
-          block_unknown: res.block_unknown,
+          rejected: res.rejected ?? res.block_unknown,
+          duplicate: res.duplicate ?? 0,
+          missing_code: res.missing_code ?? 0,
         });
         localStorage.setItem(HISTORY_KEY, JSON.stringify(hist.slice(0, 50)));
       } catch {
-        /* ignore */
+        /* ignore local history failures */
       }
       return res;
     },
+    refetchInterval: 10_000,
   });
 
   const filtered = useMemo(() => {
     if (!data) return [] as ValidationResultRow[];
     const q = filter.toLowerCase();
     return data.results.filter((r) => {
-      if (statusFilter !== "ALL" && r.status.toUpperCase().replace("-", "_") !== statusFilter) return false;
+      if (statusFilter !== "ALL" && r.status.toUpperCase().replaceAll("-", "_") !== statusFilter) return false;
       if (!q) return true;
       return (
         r.po_number.toLowerCase().includes(q) ||
         r.original_code.toLowerCase().includes(q) ||
         r.mapped_code.toLowerCase().includes(q) ||
-        r.message.toLowerCase().includes(q)
+        r.message.toLowerCase().includes(q) ||
+        (r.notification_message ?? "").toLowerCase().includes(q)
       );
     });
   }, [data, filter, statusFilter]);
 
   function exportCsv() {
     if (!data) return;
-    const header = ["PO", "Line", "Original", "Mapped", "Status", "Message", "Timestamp", "Validated By"];
+    const header = ["PO", "Line", "Item Code", "Result", "Status", "Message", "Notification", "Timestamp", "Validated By"];
     const rows = filtered.map((r) => [
       r.po_number,
       r.line_num,
@@ -109,6 +116,7 @@ function RunTab() {
       r.mapped_code,
       r.status,
       r.message.replace(/"/g, '""'),
+      (r.notification_message ?? "").replace(/"/g, '""'),
       r.timestamp,
       r.validated_by,
     ]);
@@ -131,7 +139,7 @@ function RunTab() {
           className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:opacity-90 disabled:opacity-50"
         >
           <Play className="h-4 w-4" />
-          {isFetching ? "Running…" : "Run validation"}
+          {isFetching ? "Running..." : "Run validation"}
         </button>
         <button
           onClick={exportCsv}
@@ -142,16 +150,16 @@ function RunTab() {
         </button>
       </div>
 
-      {isLoading && <Spinner label="Validating PO lines…" />}
+      {isLoading && <Spinner label="Validating item codes..." />}
       {error && <ErrBox error={error} />}
       {data && (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
             <KpiCard label="Total" value={data.total} />
             <KpiCard label="Pass" value={data.pass} tone="pass" />
-            <KpiCard label="Auto‑map" value={data.auto_map} tone="info" />
-            <KpiCard label="Block inactive" value={data.block_inactive} tone="warn" />
-            <KpiCard label="Block unknown" value={data.block_unknown} tone="block" />
+            <KpiCard label="Rejected" value={data.rejected ?? data.block_unknown} tone="block" />
+            <KpiCard label="Duplicate/existing" value={data.duplicate ?? 0} tone="warn" />
+            <KpiCard label="Missing code" value={data.missing_code ?? 0} tone="info" />
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -160,7 +168,7 @@ function RunTab() {
               <input
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                placeholder="Filter PO, code, message…"
+                placeholder="Filter PO, code, message..."
                 className="w-72 rounded-lg border border-border bg-card/40 py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
               />
             </div>
@@ -171,9 +179,9 @@ function RunTab() {
             >
               <option value="ALL">All statuses</option>
               <option value="PASS">PASS</option>
-              <option value="AUTO_MAP">AUTO‑MAP</option>
-              <option value="BLOCK_INACTIVE">BLOCK‑INACTIVE</option>
-              <option value="BLOCK_UNKNOWN">BLOCK‑UNKNOWN</option>
+              <option value="REJECT_EXISTS">REJECT-EXISTS</option>
+              <option value="REJECT_DUPLICATE">REJECT-DUPLICATE</option>
+              <option value="REJECT_MISSING_CODE">REJECT-MISSING-CODE</option>
             </select>
             <span className="text-xs text-muted-foreground">{filtered.length} rows</span>
           </div>
@@ -182,18 +190,18 @@ function RunTab() {
             <Empty>No rows match your filters.</Empty>
           ) : (
             <TableWrap>
-              <THead cols={["PO", "Line", "Original", "Mapped", "Status", "Message", "Validated"]} />
+              <THead cols={["PO", "Line", "Item code", "Result", "Status", "Notification", "Validated"]} />
               <tbody>
                 {filtered.map((r, i) => (
                   <TR key={`${r.po_number}-${r.line_num}-${i}`}>
                     <TD mono>{r.po_number}</TD>
                     <TD>{r.line_num}</TD>
                     <TD mono>{r.original_code}</TD>
-                    <TD mono>{r.mapped_code}</TD>
+                    <TD>{r.message}</TD>
                     <TD>
                       <StatusBadge status={r.status} />
                     </TD>
-                    <TD>{r.message}</TD>
+                    <TD>{r.notification_message ?? "-"}</TD>
                     <TD>
                       <span className="text-xs text-muted-foreground">{r.validated_by}</span>
                     </TD>
@@ -225,23 +233,23 @@ function HistoryTab() {
         </button>
       </div>
       <TableWrap>
-        <THead cols={["When", "Total", "Pass", "Auto‑map", "Block inactive", "Block unknown"]} />
+        <THead cols={["When", "Total", "Pass", "Rejected", "Duplicate/existing", "Missing code"]} />
         <tbody>
           {history.map((h) => (
             <TR key={h.id}>
               <TD>{new Date(h.ranAt).toLocaleString()}</TD>
               <TD>{h.total}</TD>
               <TD>
-                <span className="text-emerald-300">{h.pass}</span>
+                <span className="text-emerald-700 dark:text-emerald-300">{h.pass}</span>
               </TD>
               <TD>
-                <span className="text-sky-300">{h.auto_map}</span>
+                <span className="text-rose-700 dark:text-rose-300">{h.rejected}</span>
               </TD>
               <TD>
-                <span className="text-amber-300">{h.block_inactive}</span>
+                <span className="text-amber-700 dark:text-amber-300">{h.duplicate}</span>
               </TD>
               <TD>
-                <span className="text-rose-300">{h.block_unknown}</span>
+                <span className="text-sky-700 dark:text-sky-300">{h.missing_code}</span>
               </TD>
             </TR>
           ))}
@@ -252,20 +260,41 @@ function HistoryTab() {
 }
 
 function SettingsTab() {
-  const [autoMap, setAutoMap] = useState(true);
-  const [hideKnown, setHideKnown] = useState(false);
+  const [notifyTeams, setNotifyTeams] = useState(true);
+  const [notifyOutlook, setNotifyOutlook] = useState(true);
   return (
     <div className="max-w-xl space-y-4 rounded-2xl border border-border/60 bg-card/40 p-6 backdrop-blur-xl">
-      <Toggle label="Enable auto‑mapping" hint="Apply code-mapping table to remap inactive codes." value={autoMap} onChange={setAutoMap} />
-      <Toggle label="Hide PASS rows by default" hint="Focus on rows that need attention." value={hideKnown} onChange={setHideKnown} />
+      <Toggle
+        label="Prepare Teams notification"
+        hint="Validation results include pass/reject messages ready for Teams delivery."
+        value={notifyTeams}
+        onChange={setNotifyTeams}
+      />
+      <Toggle
+        label="Prepare Outlook notification"
+        hint="Validation results include the same pass/reject message for mail delivery."
+        value={notifyOutlook}
+        onChange={setNotifyOutlook}
+      />
       <p className="text-xs text-muted-foreground">
-        These preferences are stored locally and don't change server behavior.
+        The current build prepares notification text in validation results. Actual Teams and Outlook sending can be
+        connected through Microsoft Graph or Power Automate.
       </p>
     </div>
   );
 }
 
-function Toggle({ label, hint, value, onChange }: { label: string; hint?: string; value: boolean; onChange: (v: boolean) => void }) {
+function Toggle({
+  label,
+  hint,
+  value,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <label className="flex cursor-pointer items-start justify-between gap-4">
       <div>
@@ -277,7 +306,11 @@ function Toggle({ label, hint, value, onChange }: { label: string; hint?: string
         onClick={() => onChange(!value)}
         className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${value ? "bg-primary" : "bg-muted"}`}
       >
-        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${value ? "translate-x-5" : "translate-x-0.5"}`} />
+        <span
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-background transition-transform ${
+            value ? "translate-x-5" : "translate-x-0.5"
+          }`}
+        />
       </button>
     </label>
   );

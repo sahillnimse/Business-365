@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ValidationRouteImport } from './routes/validation'
+import { Route as UploadRouteImport } from './routes/upload'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as PurchasingRouteImport } from './routes/purchasing'
 import { Route as ProfileRouteImport } from './routes/profile'
@@ -20,6 +21,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const ValidationRoute = ValidationRouteImport.update({
   id: '/validation',
   path: '/validation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UploadRoute = UploadRouteImport.update({
+  id: '/upload',
+  path: '/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/purchasing': typeof PurchasingRoute
   '/settings': typeof SettingsRoute
+  '/upload': typeof UploadRoute
   '/validation': typeof ValidationRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/purchasing': typeof PurchasingRoute
   '/settings': typeof SettingsRoute
+  '/upload': typeof UploadRoute
   '/validation': typeof ValidationRoute
 }
 export interface FileRoutesById {
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/purchasing': typeof PurchasingRoute
   '/settings': typeof SettingsRoute
+  '/upload': typeof UploadRoute
   '/validation': typeof ValidationRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/purchasing'
     | '/settings'
+    | '/upload'
     | '/validation'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/purchasing'
     | '/settings'
+    | '/upload'
     | '/validation'
   id:
     | '__root__'
@@ -108,6 +119,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/purchasing'
     | '/settings'
+    | '/upload'
     | '/validation'
   fileRoutesById: FileRoutesById
 }
@@ -118,6 +130,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   PurchasingRoute: typeof PurchasingRoute
   SettingsRoute: typeof SettingsRoute
+  UploadRoute: typeof UploadRoute
   ValidationRoute: typeof ValidationRoute
 }
 
@@ -128,6 +141,13 @@ declare module '@tanstack/react-router' {
       path: '/validation'
       fullPath: '/validation'
       preLoaderRoute: typeof ValidationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/upload': {
+      id: '/upload'
+      path: '/upload'
+      fullPath: '/upload'
+      preLoaderRoute: typeof UploadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -182,6 +202,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   PurchasingRoute: PurchasingRoute,
   SettingsRoute: SettingsRoute,
+  UploadRoute: UploadRoute,
   ValidationRoute: ValidationRoute,
 }
 export const routeTree = rootRouteImport

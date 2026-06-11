@@ -30,6 +30,17 @@ export const MODULES: ModuleDef[] = [
     ],
   },
   {
+    id: "upload",
+    label: "CSV Upload",
+    path: "/upload",
+    icon: "FileSpreadsheet",
+    tabs: [
+      { id: "upload", label: "Upload" },
+      { id: "sheets", label: "Sheets" },
+      { id: "mapping", label: "Mapping" },
+    ],
+  },
+  {
     id: "purchasing",
     label: "Purchasing",
     path: "/purchasing",

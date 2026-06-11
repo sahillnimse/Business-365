@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 export function Spinner({ label }: { label?: string }) {
   return (
     <div className="flex items-center gap-3 text-muted-foreground">
-      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+      <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
       <span className="text-sm">{label ?? "Loading…"}</span>
     </div>
   );
@@ -12,7 +12,7 @@ export function Spinner({ label }: { label?: string }) {
 export function ErrBox({ error }: { error: unknown }) {
   const msg = error instanceof Error ? error.message : String(error);
   return (
-    <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+    <div className="rounded-xl border border-destructive/30 bg-destructive/8 px-4 py-3 text-sm text-destructive shadow-sm">
       <div className="font-semibold">Something went wrong</div>
       <div className="mt-1 opacity-90">{msg}</div>
     </div>
@@ -21,7 +21,7 @@ export function ErrBox({ error }: { error: unknown }) {
 
 export function Empty({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-lg border border-dashed border-border bg-card/40 px-6 py-10 text-center text-sm text-muted-foreground">
+    <div className="rounded-xl border border-dashed border-border/80 bg-muted/30 px-6 py-12 text-center text-sm text-muted-foreground">
       {children}
     </div>
   );
@@ -38,27 +38,30 @@ export function KpiCard({
   hint?: string;
   tone?: "default" | "pass" | "warn" | "block" | "info";
 }) {
-  const tones: Record<string, string> = {
-    default: "from-card/80 to-card/40",
-    pass: "from-emerald-500/15 to-emerald-500/5",
-    warn: "from-amber-500/15 to-amber-500/5",
-    block: "from-rose-500/15 to-rose-500/5",
-    info: "from-sky-500/15 to-sky-500/5",
+  const tones: Record<string, { bg: string; accent: string }> = {
+    default: { bg: "from-card to-muted/40", accent: "bg-primary/60" },
+    pass: { bg: "from-emerald-500/10 to-card", accent: "bg-emerald-500" },
+    warn: { bg: "from-amber-500/10 to-card", accent: "bg-amber-500" },
+    block: { bg: "from-rose-500/10 to-card", accent: "bg-rose-500" },
+    info: { bg: "from-primary/10 to-card", accent: "bg-primary" },
   };
+  const t = tones[tone] ?? tones.default;
   return (
-    <div
-      className={`rounded-2xl border border-border/60 bg-gradient-to-br ${tones[tone]} p-5 shadow-sm backdrop-blur-xl`}
-    >
-      <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="mt-2 text-3xl font-semibold tracking-tight">{value}</div>
-      {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
+    <div className="group relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br p-5 shadow-sm transition-shadow hover:shadow-md">
+      <div className={`absolute left-0 top-0 h-full w-1 ${t.accent} opacity-80`} />
+      <div className={`absolute inset-0 bg-gradient-to-br ${t.bg} opacity-80`} />
+      <div className="relative">
+        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
+        <div className="mt-2 text-3xl font-bold tracking-tight text-foreground">{value}</div>
+        {hint && <div className="mt-1.5 text-xs text-muted-foreground">{hint}</div>}
+      </div>
     </div>
   );
 }
 
 export function TableWrap({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border/60 bg-card/40 backdrop-blur-xl">
+    <div className="overflow-hidden rounded-xl border border-border/60 glass-panel">
       <div className="max-h-[65vh] overflow-auto">
         <table className="w-full border-collapse text-sm">{children}</table>
       </div>
@@ -68,12 +71,12 @@ export function TableWrap({ children }: { children: ReactNode }) {
 
 export function THead({ cols }: { cols: string[] }) {
   return (
-    <thead className="sticky top-0 z-10 bg-card/90 backdrop-blur">
+    <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
       <tr>
         {cols.map((c) => (
           <th
             key={c}
-            className="border-b border-border/60 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            className="border-b border-border/60 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
           >
             {c}
           </th>
@@ -84,25 +87,41 @@ export function THead({ cols }: { cols: string[] }) {
 }
 
 export function TR({ children }: { children: ReactNode }) {
-  return <tr className="border-b border-border/30 transition-colors hover:bg-accent/30">{children}</tr>;
+  return (
+    <tr className="border-b border-border/40 transition-colors even:bg-muted/20 hover:bg-accent/40">
+      {children}
+    </tr>
+  );
 }
 
 export function TD({ children, mono }: { children: ReactNode; mono?: boolean }) {
-  return <td className={`px-3 py-2 ${mono ? "font-mono text-xs" : ""}`}>{children}</td>;
+  return <td className={`px-4 py-2.5 ${mono ? "font-mono text-xs text-muted-foreground" : ""}`}>{children}</td>;
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const s = status.toUpperCase().replace("-", "_");
+  const s = status.toUpperCase().replaceAll("-", "_");
   const styles: Record<string, string> = {
-    PASS: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-    AUTO_MAP: "bg-sky-500/15 text-sky-300 border-sky-500/30",
-    BLOCK_INACTIVE: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-    BLOCK_UNKNOWN: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+    PASS: "bg-emerald-500/12 text-emerald-700 border-emerald-500/25 dark:text-emerald-300",
+    AUTO_MAP: "bg-sky-500/12 text-sky-700 border-sky-500/25 dark:text-sky-300",
+    BLOCK_INACTIVE: "bg-amber-500/12 text-amber-700 border-amber-500/25 dark:text-amber-300",
+    BLOCK_UNKNOWN: "bg-rose-500/12 text-rose-700 border-rose-500/25 dark:text-rose-300",
+    REJECT_EXISTS: "bg-rose-500/12 text-rose-700 border-rose-500/25 dark:text-rose-300",
+    REJECT_DUPLICATE: "bg-amber-500/12 text-amber-700 border-amber-500/25 dark:text-amber-300",
+    REJECT_MISSING_CODE: "bg-sky-500/12 text-sky-700 border-sky-500/25 dark:text-sky-300",
   };
   const cls = styles[s] ?? "bg-muted text-muted-foreground border-border";
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${cls}`}>
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide ${cls}`}>
       {status}
     </span>
+  );
+}
+
+export function SectionCard({ title, children, className = "" }: { title?: string; children: ReactNode; className?: string }) {
+  return (
+    <section className={`rounded-2xl border border-border/60 glass-panel p-6 ${className}`}>
+      {title && <h3 className="mb-4 text-sm font-semibold text-foreground">{title}</h3>}
+      {children}
+    </section>
   );
 }
