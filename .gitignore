@@ -50,3 +50,8 @@ __pycache__/
 # Environment files
 .env
 .env.*
+.prettierrc
+.prettierignore
+.eslintrc.js
+.eslintignore
+.eslintrc.js
