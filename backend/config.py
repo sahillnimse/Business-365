@@ -5,14 +5,16 @@
 # and loaded automatically by auth.py via python-dotenv.
 # ============================================================
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()  # reads backend/.env
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
 
 # ============================================================
 # LOCAL FILE PATH
 # ============================================================
-LOCAL_DATA_PATH = "./data"
+LOCAL_DATA_PATH = BASE_DIR / "data"
 
 FILE_NAMES = {
     "item_master":  "Item_Master.xlsx",
@@ -44,10 +46,12 @@ SHAREPOINT = {
 # BUSINESS CENTRAL
 # ============================================================
 BC = {
-    "environment":  "production",
+    "environment":  os.environ.get("BC_ENVIRONMENT", "production"),
     "company_name": os.environ.get("BC_COMPANY_NAME", "YOUR_COMPANY_NAME"),
     "base_url":     "https://api.businesscentral.dynamics.com/v2.0",
 }
+
+BC_DELEGATED_SCOPE = "https://api.businesscentral.dynamics.com/user_impersonation"
 
 # ============================================================
 # DATA SOURCE — "local" | "sharepoint" | "bc"
