@@ -173,7 +173,13 @@ async def upload_workbook(file: UploadFile = File(...), user: dict = Depends(get
 
 
 @app.post("/teams/po-trigger")
-def teams_po_trigger(payload: dict = Body(...)):
+def teams_po_trigger(request: Request, payload: dict = Body(...)):
+    import os
+    webhook_secret = os.environ.get("TEAMS_WEBHOOK_SECRET")
+    if webhook_secret:
+        auth_header = request.headers.get("X-Webhook-Secret")
+        if auth_header != webhook_secret:
+            raise HTTPException(status_code=401, detail="Invalid webhook secret")
     try:
         event = save_po_trigger(payload)
         lines = payload.get("lines")

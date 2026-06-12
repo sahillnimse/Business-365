@@ -14,7 +14,10 @@ load_dotenv(BASE_DIR / ".env")
 # ============================================================
 # LOCAL FILE PATH
 # ============================================================
-LOCAL_DATA_PATH = BASE_DIR / "data"
+if os.environ.get("VERCEL"):
+    LOCAL_DATA_PATH = Path("/tmp/data")
+else:
+    LOCAL_DATA_PATH = BASE_DIR / "data"
 
 FILE_NAMES = {
     "item_master":  "Item_Master.xlsx",
@@ -57,3 +60,11 @@ BC_DELEGATED_SCOPE = "https://api.businesscentral.dynamics.com/user_impersonatio
 # DATA SOURCE — "local" | "sharepoint" | "bc"
 # ============================================================
 DATA_SOURCE = os.environ.get("DATA_SOURCE", "local")
+
+# ============================================================
+# CONFIG VALIDATIONS
+# ============================================================
+if DATA_SOURCE == "bc":
+    if not AZURE.get("tenant_id") or not AZURE.get("client_id") or AZURE.get("client_id") == "YOUR_CLIENT_ID":
+        raise RuntimeError("Cannot use 'bc' (Business Central) mode without proper Azure tenant_id and client_id configuration.")
+

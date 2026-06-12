@@ -78,6 +78,36 @@ def detect_dataset(sheet_name: str, df: pd.DataFrame) -> str | None:
         return "item_master"
     return None
 
+SCHEMAS = {
+    "item_master": ["Item Code", "Item Description", "Category", "Status", "Unit", "Unit Price (USD)"],
+    "code_mapping": ["Old Item Code", "Old Description", "New Item Code", "New Description", "Reason for Change", "Effective Date", "Mapped By"],
+    "po_file": ["PO Number", "PO Date", "Vendor", "Line #", "Item Code", "Description", "Qty", "Unit", "Unit Price (USD)", "Total (USD)"]
+}
+
+FILE_NAME_TO_DATASET = {
+    "Item_Master.xlsx": "item_master",
+    "Code_Mapping_Table.xlsx": "code_mapping",
+    "Sample_PO_File.xlsx": "po_file",
+}
+
+def _enforce_schema(df: pd.DataFrame, schema_name: str) -> pd.DataFrame:
+    schema = SCHEMAS.get(schema_name, [])
+    for col in schema:
+        if col not in df.columns:
+            df[col] = ""
+    return df
+
+def _ensure_file(filename: str) -> Path:
+    path = Path(LOCAL_DATA_PATH) / filename
+    if not path.exists():
+        packaged_dir = Path(__file__).resolve().parent / "data"
+        packaged_path = packaged_dir / filename
+        if packaged_path.exists():
+            LOCAL_DATA_PATH.mkdir(parents=True, exist_ok=True)
+            import shutil
+            shutil.copy2(packaged_path, path)
+    return path
+
 
 def read_uploaded_tables(filename: str, content: bytes) -> dict[str, pd.DataFrame]:
     suffix = Path(filename).suffix.lower()
@@ -179,7 +209,7 @@ def latest_po_trigger() -> dict | None:
 def upload_status() -> dict:
     datasets = []
     for dataset, filename in FILE_NAMES.items():
-        path = LOCAL_DATA_PATH / filename
+        path = _ensure_file(filename)
         rows = 0
         columns: list[str] = []
         if path.exists():
@@ -208,11 +238,15 @@ def upload_status() -> dict:
 # LOCAL LOADER — reads from local machine path
 # ============================================================
 def load_local(filename: str) -> pd.DataFrame:
-    path = Path(LOCAL_DATA_PATH) / filename
+    path = _ensure_file(filename)
     if not path.exists():
         raise FileNotFoundError(f"File not found: {path}")
     df = pd.read_excel(path)
-    return _normalize_df(df)
+    df = _normalize_df(df)
+    dataset_name = FILE_NAME_TO_DATASET.get(filename)
+    if dataset_name:
+        df = _enforce_schema(df, dataset_name)
+    return df
 
 # ============================================================
 # SHAREPOINT LOADER — placeholder, ready to activate
@@ -237,32 +271,26 @@ def load_bc_items() -> pd.DataFrame:
     from bc_client import get_bc_client
 
     client = get_bc_client()
-    return _normalize_df(client.fetch_items_df())
+    df = _normalize_df(client.fetch_items_df())
+    return _enforce_schema(df, "item_master")
 
 
 def load_bc_purchase_lines() -> pd.DataFrame:
     from bc_client import get_bc_client
 
     client = get_bc_client()
-    return _normalize_df(client.fetch_purchase_order_lines_df())
+    df = _normalize_df(client.fetch_purchase_order_lines_df())
+    return _enforce_schema(df, "po_file")
 
 
 def load_bc_code_mapping_fallback() -> pd.DataFrame:
     """Code mappings are usually custom; fall back to local Excel when present."""
-    path = LOCAL_DATA_PATH / FILE_NAMES["code_mapping"]
+    path = _ensure_file(FILE_NAMES["code_mapping"])
     if path.exists():
         return load_local(FILE_NAMES["code_mapping"])
     return _normalize_df(
         pd.DataFrame(
-            columns=[
-                "Old Item Code",
-                "Old Description",
-                "New Item Code",
-                "New Description",
-                "Reason for Change",
-                "Effective Date",
-                "Mapped By",
-            ]
+            columns=SCHEMAS["code_mapping"]
         )
     )
 
