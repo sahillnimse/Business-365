@@ -49,7 +49,7 @@ export function AppLayout() {
   const { theme, toggle } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
-  const { user, isAuthenticated, isLoading, login } = useAuth();
+  const { user, isAuthenticated, isLoading, login, authError } = useAuth();
   const [loginError, setLoginError] = useState(null);
 
   useEffect(() => {
@@ -100,7 +100,7 @@ export function AppLayout() {
   }
 
   if (!isAuthenticated) {
-    return <SignInPage onLogin={handleLogin} error={loginError} loading={loginLoading} />;
+    return <SignInPage onLogin={handleLogin} error={loginError || authError} loading={loginLoading} />;
   }
 
   return (

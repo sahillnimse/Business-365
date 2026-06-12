@@ -11,6 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from datetime import datetime, timezone, timedelta
 import jwt
+import pandas as pd
+from bc_client import BusinessCentralError
 
 from data_loader import (
     get_item_master,
@@ -174,9 +176,22 @@ async def upload_workbook(file: UploadFile = File(...), user: dict = Depends(get
 def teams_po_trigger(payload: dict = Body(...)):
     try:
         event = save_po_trigger(payload)
-        validation = run_validation_logic({
-            "preferred_username": payload.get("created_by", "teams-trigger"),
-        })
+        lines = payload.get("lines")
+        
+        # Parse the lines from the payload to validate them directly
+        custom_df = pd.DataFrame(lines) if lines else pd.DataFrame(columns=[
+            "PO Number", "PO Date", "Vendor", "Line #", "Item Code",
+            "Description", "Qty", "Unit", "Unit Price (USD)", "Total (USD)"
+        ])
+        # Standardize columns to match what run_validation_logic expects
+        if not custom_df.empty:
+            custom_df.columns = [str(col).strip() for col in custom_df.columns]
+            custom_df = custom_df.fillna("")
+
+        validation = run_validation_logic(
+            user={"preferred_username": payload.get("created_by", "teams-trigger")},
+            custom_po_df=custom_df
+        )
         return {
             "accepted": True,
             "event": event,
@@ -374,10 +389,10 @@ def finance_summary(user: dict = Depends(get_current_user)):
 # ============================================================
 # VALIDATION — core logic
 # ============================================================
-def run_validation_logic(user: dict) -> dict:
+def run_validation_logic(user: dict, custom_po_df: pd.DataFrame = None) -> dict:
     item_master_df = get_item_master()
     code_mapping_df = get_code_mapping()
-    po_df = get_po_lines()
+    po_df = custom_po_df if custom_po_df is not None else get_po_lines()
 
     results = []
     existing_codes = {
@@ -530,6 +545,8 @@ def validate(user: dict = Depends(get_current_user)):
 # ============================================================
 @app.get("/dashboard")
 def dashboard(user: dict = Depends(get_current_user)):
+    import logging
+    _logger = logging.getLogger(__name__)
     try:
         item_df = get_item_master()
         item_stats = {
@@ -565,7 +582,14 @@ def dashboard(user: dict = Depends(get_current_user)):
             "po": po_data,
             "mappings": {"total": len(mapping_df)},
         }
+    except BusinessCentralError as bc_err:
+        _logger.warning(f"Dashboard BC token issue: {bc_err}")
+        return {
+            "error": str(bc_err),
+            "detail": "Business Central token missing or invalid. Use 'Connect Business Central' in Settings.",
+        }
     except Exception as e:
+        _logger.error(f"Dashboard endpoint failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

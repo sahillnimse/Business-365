@@ -29,14 +29,16 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
 
   const checkAuth = useCallback(async () => {
-    let authError = null;
+    let errorMsg = null;
     try {
       let merged = await resolveUser();
       if (merged) {
         setUser(merged);
         setIsAuthenticated(true);
+        setAuthError(null);
         // Enrich with Microsoft Graph profile (photo, job title, etc.) in the background.
         getMsalAccountProfile()
           .then((msal) => {
@@ -49,10 +51,10 @@ export function AuthProvider({ children }) {
 
       const me = await apiGet("/auth/me");
       if (me?.detail) {
-        authError = typeof me.detail === "string" ? me.detail : JSON.stringify(me.detail);
+        errorMsg = typeof me.detail === "string" ? me.detail : JSON.stringify(me.detail);
       }
     } catch (err) {
-      authError = err instanceof Error ? err.message : "Authentication check failed";
+      errorMsg = err instanceof Error ? err.message : "Authentication check failed";
     }
 
     await refreshBcToken();
@@ -63,6 +65,7 @@ export function AuthProvider({ children }) {
         if (merged) {
           setUser(merged);
           setIsAuthenticated(true);
+          setAuthError(null);
           getMsalAccountProfile()
             .then((msal) => {
               const enriched = mergeUserProfile(merged, msal);
@@ -72,14 +75,15 @@ export function AuthProvider({ children }) {
           return { ok: true };
         }
       } catch (err) {
-        authError = err instanceof Error ? err.message : authError;
+        errorMsg = err instanceof Error ? err.message : errorMsg;
       }
     }
 
     resetStoredToken();
     setUser(null);
     setIsAuthenticated(false);
-    return { ok: false, error: authError };
+    setAuthError(errorMsg);
+    return { ok: false, error: errorMsg };
   }, []);
 
   const refreshProfile = useCallback(async () => {
@@ -138,8 +142,29 @@ export function AuthProvider({ children }) {
     setIsAuthenticated(false);
   }, []);
 
+  const connectBusinessCentral = useCallback(async () => {
+    try {
+      const token = await refreshBcToken(true);
+      return token;
+    } catch (err) {
+      console.error("Failed to connect to Business Central:", err);
+      throw err;
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, refreshProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        isLoading,
+        authError,
+        login,
+        logout,
+        refreshProfile,
+        connectBusinessCentral,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

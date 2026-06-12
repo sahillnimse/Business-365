@@ -103,6 +103,11 @@ class BusinessCentralClient:
                 "Last Updated": _date(item.get("lastModifiedDateTime")),
             })
 
+        if not rows:
+            return pd.DataFrame(columns=[
+                "Item Code", "Item Description", "Category", "Unit of Measure",
+                "Unit Price (USD)", "Status", "Last Updated"
+            ])
         return pd.DataFrame(rows)
 
     def fetch_purchase_order_lines_df(self) -> pd.DataFrame:
@@ -144,6 +149,11 @@ class BusinessCentralClient:
                     "Total (USD)": total,
                 })
 
+        if not rows:
+            return pd.DataFrame(columns=[
+                "PO Number", "PO Date", "Vendor", "Line #", "Item Code",
+                "Description", "Qty", "Unit", "Unit Price (USD)", "Total (USD)"
+            ])
         return pd.DataFrame(rows)
 
 

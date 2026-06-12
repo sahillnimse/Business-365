@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { apiGet, setAuthToken, loadStoredToken } from "@/lib/api";
 import { Spinner, ErrBox } from "@/components/ui-bits";
 import { PageHeader, TabBar } from "@/components/TabBar";
-import { Save, KeyRound } from "lucide-react";
+import { Save, KeyRound, CloudLightning } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function SettingsPage() {
   const [searchParams] = useSearchParams();
@@ -121,21 +122,59 @@ function AzureTab() {
 }
 
 function Bc365Tab() {
+  const { connectBusinessCentral } = useAuth();
+  const [connecting, setConnecting] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleConnect = async () => {
+    setConnecting(true);
+    setError(null);
+    try {
+      await connectBusinessCentral();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Connection failed");
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   return (
     <Card title="Business Central" subtitle="Connection details for BC365 as a data source.">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Environment">
-          <input className="ipt" placeholder="Production" />
+          <input className="ipt" placeholder="Production" disabled />
         </Field>
         <Field label="Company">
-          <input className="ipt" placeholder="CRONUS USA, Inc." />
+          <input className="ipt" placeholder="CRONUS USA, Inc." disabled />
         </Field>
         <Field label="Base URL">
-          <input className="ipt" placeholder="https://api.businesscentral.dynamics.com/…" />
+          <input className="ipt" placeholder="https://api.businesscentral.dynamics.com/…" disabled />
         </Field>
         <Field label="API version">
-          <input className="ipt" placeholder="v2.0" />
+          <input className="ipt" placeholder="v2.0" disabled />
         </Field>
+      </div>
+
+      <div className="mt-6 border-t border-border/60 pt-4">
+        <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider mb-2">
+          Delegated User Authentication
+        </h4>
+        <p className="text-xs text-muted-foreground mb-4">
+          To read live data from Business Central, you must consent to the application acting on your behalf.
+        </p>
+        {error && (
+          <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {error}
+          </div>
+        )}
+        <button
+          onClick={handleConnect}
+          disabled={connecting}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        >
+          <CloudLightning className="h-4 w-4" />
+          {connecting ? "Connecting..." : "Connect Business Central"}
+        </button>
       </div>
       <style>{`.ipt{width:100%;border:1px solid var(--border);background:rgb(255 255 255 / 0.04);border-radius:0.5rem;padding:0.5rem 0.75rem;font-size:0.875rem}.ipt:focus{outline:none;border-color:var(--primary)}`}</style>
     </Card>

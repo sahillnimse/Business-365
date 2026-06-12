@@ -96,7 +96,7 @@ export function clearBcAccessToken() {
   storeBcAccessToken(null);
 }
 
-export async function refreshBcToken() {
+export async function refreshBcToken(allowRedirect = false) {
   if (typeof window === "undefined") return null;
 
   try {
@@ -111,7 +111,7 @@ export async function refreshBcToken() {
     storeBcAccessToken(bcAccessToken);
     return bcAccessToken;
   } catch (err) {
-    if (isInteractionRequiredError(err)) {
+    if (allowRedirect && isInteractionRequiredError(err)) {
       console.info("[msal] Business Central consent required — redirecting for user_impersonation");
       const instance = await getMsalInstance();
       await instance.acquireTokenRedirect({ scopes: BC_SCOPES });
@@ -142,6 +142,8 @@ export async function refreshApiToken() {
   }
 }
 
+let handleRedirectInitPromise = null;
+
 export async function initializeMsal() {
   if (typeof window === "undefined") return;
 
@@ -152,17 +154,24 @@ export async function initializeMsal() {
     return;
   }
 
+  if (!handleRedirectInitPromise) {
+    handleRedirectInitPromise = (async () => {
+      const instance = await getMsalInstance();
+      await instance.initialize();
+      const response = await instance.handleRedirectPromise();
+      if (response?.account) {
+        instance.setActiveAccount(response.account);
+      }
+      if (storeToken(response)) {
+        console.log("[msal] Redirect handled - token stored");
+      }
+      await refreshBcToken();
+      return response;
+    })();
+  }
+
   try {
-    const instance = await getMsalInstance();
-    await instance.initialize();
-    const response = await instance.handleRedirectPromise();
-    if (response?.account) {
-      instance.setActiveAccount(response.account);
-    }
-    if (storeToken(response)) {
-      console.log("[msal] Redirect handled - token stored");
-    }
-    await refreshBcToken();
+    await handleRedirectInitPromise;
   } catch (err) {
     console.warn("[msal] handleRedirectPromise failed:", err);
   }

@@ -107,6 +107,9 @@ def _decode_ms_jwt(token: str, public_key, unverified: dict) -> dict:
         raise ValueError(str(last_error or exc)) from exc
 
 
+import logging
+logger = logging.getLogger(__name__)
+
 def verify_ms_token(token: str) -> dict:
     ms_error = "Microsoft token verification was not attempted"
     azure_enabled = bool(AZURE_CLIENT_ID and AZURE_CLIENT_ID != "YOUR_CLIENT_ID")
@@ -129,6 +132,7 @@ def verify_ms_token(token: str) -> dict:
         return _decode_ms_jwt(token, public_key, unverified)
     except Exception as exc:
         ms_error = str(exc)
+        logger.error(f"Microsoft token verification failed: {exc}", exc_info=True)
 
     if azure_enabled:
         raise HTTPException(
