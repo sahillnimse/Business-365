@@ -49,7 +49,7 @@ __pycache__/
 
 # Environment files
 .env
-.env.*
+.env
 .prettierrc
 .prettierignore
 .eslintrc.js
