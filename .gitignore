@@ -55,3 +55,6 @@ __pycache__/
 .eslintrc.js
 .eslintignore
 .eslintrc.js
+.env.production
+.env.local
+.env.development    

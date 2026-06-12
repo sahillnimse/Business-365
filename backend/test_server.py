@@ -15,7 +15,7 @@ def test_backend():
     import threading
     
     server = subprocess.Popen([
-        sys.executable, 'main.py'
+        sys.executable, '-m', 'uvicorn', 'main:app', '--port', '8000'
     ], cwd='backend')
     
     try:
