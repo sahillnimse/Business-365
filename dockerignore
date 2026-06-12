@@ -1,0 +1,8 @@
+frontend/
+.git/
+.github/
+**/__pycache__/
+**/*.pyc
+**/.env
+backend/venv/
+*.md

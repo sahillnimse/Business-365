@@ -1,0 +1,36 @@
+name: business-365-backend
+services:
+  - name: api
+    type: web
+    git:
+      repository: github.com/sahillnimse/Business-365
+      branch: main
+      dockerfile: Dockerfile
+    ports:
+      - port: 8000
+        protocol: http
+    routes:
+      - path: /
+        port: 8000
+    env:
+      - key: DATA_SOURCE
+        value: "local"
+      - key: AZURE_TENANT_ID
+        secret: AZURE_TENANT_ID
+      - key: AZURE_CLIENT_ID
+        secret: AZURE_CLIENT_ID
+      - key: AZURE_CLIENT_SECRET
+        secret: AZURE_CLIENT_SECRET
+      - key: DUMMY_JWT_SECRET
+        secret: DUMMY_JWT_SECRET
+      - key: BC_COMPANY_NAME
+        value: "My Company"
+      - key: BC_ENVIRONMENT
+        value: "production"
+    instance_type: free
+    regions:
+      - was
+    health_checks:
+      - path: /health
+        port: 8000
+        protocol: http
