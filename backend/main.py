@@ -179,7 +179,7 @@ def teams_po_trigger(request: Request, payload: dict = Body(...)):
     if webhook_secret:
         auth_header = request.headers.get("X-Webhook-Secret")
         if auth_header != webhook_secret:
-            raise HTTPException(status_code=401, detail="Invalid webhook secret")
+            raise HTTPException(status_code=403, detail="Invalid webhook secret")
     try:
         event = save_po_trigger(payload)
         lines = payload.get("lines")
