@@ -129,24 +129,6 @@ function WebhooksTab() {
   );
 }
 
-import { Spinner, ErrBox } from "@/components/ui-bits";
-import { PageHeader, TabBar } from "@/components/TabBar";
-import { Save, KeyRound, CloudLightning } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
-
-export default function SettingsPage() {
-  const [searchParams] = useSearchParams();
-  const tab = searchParams.get("tab") || "connections";
-  return (
-    <div>
-      <PageHeader title="Settings" subtitle="Configure how the validator reaches your data." />
-      <TabBar moduleId="settings" activeTab={tab} />
-      {tab === "connections" && <ConnectionsTab />}
-      {tab === "azure" && <AzureTab />}
-      {tab === "bc365" && <Bc365Tab />}
-    </div>
-  );
-}
 
 function ConnectionsTab() {
   const q = useQuery({ queryKey: ["health-full"], queryFn: () => apiGet("/health") });
