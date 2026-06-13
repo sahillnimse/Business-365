@@ -14,9 +14,19 @@ export default defineConfig({
     },
   },
   server: {
-    // MSAL PKCE requires crypto.subtle — only available on localhost or HTTPS, not LAN IPs.
     host: "localhost",
     port: 8080,
     strictPort: true,
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes("node_modules")) {
+            return "vendor";
+          }
+        },
+      },
+    },
   },
 });
