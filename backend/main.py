@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from datetime import datetime, timezone, timedelta
 import jwt
+from backend.kv_store import kv_get, kv_set, kv_delete
 import pandas as pd
 from bc_client import BusinessCentralError
 
@@ -175,7 +176,7 @@ async def upload_workbook(file: UploadFile = File(...), user: dict = Depends(get
 @app.post("/teams/po-trigger")
 def teams_po_trigger(request: Request, payload: dict = Body(...)):
     import os
-    webhook_secret = os.environ.get("TEAMS_WEBHOOK_SECRET")
+    webhook_secret = kv_get("TEAMS_WEBHOOK_SECRET", "TEAMS_WEBHOOK_SECRET")
     if webhook_secret:
         auth_header = request.headers.get("X-Webhook-Secret")
         if auth_header != webhook_secret:
@@ -547,6 +548,56 @@ def validate(user: dict = Depends(get_current_user)):
 
 
 # ============================================================
+# WEBHOOK SETTINGS
+# ============================================================
+@app.get("/settings/webhook")
+def get_webhook_settings(request: Request, user: dict = Depends(get_current_user)):
+    import os
+    base_url = str(request.base_url).rstrip("/")
+    if "/api" in request.url.path or "vercel" in base_url or os.getenv("VERCEL"):
+        webhook_url = f"{base_url}/api/teams/po-trigger"
+    else:
+        webhook_url = f"{base_url}/teams/po-trigger"
+
+    # Determine storage backend
+    storage_backend = "vercel-kv" if os.getenv("KV_REST_API_URL") and os.getenv("KV_REST_API_TOKEN") else "env"
+    secret = kv_get("TEAMS_WEBHOOK_SECRET", "TEAMS_WEBHOOK_SECRET")
+    secret_configured = bool(secret)
+    secret_preview = secret[:4] + "****" if secret else ""
+    return {
+        "webhook_url": webhook_url,
+        "secret_configured": secret_configured,
+        "secret_preview": secret_preview,
+        "storage_backend": storage_backend,
+    }
+
+
+@app.post("/settings/webhook")
+def update_webhook_settings(payload: dict = Body(...), user: dict = Depends(get_current_user)):
+    secret = payload.get("secret", "").strip()
+    if secret and len(secret) < 16:
+        raise HTTPException(status_code=400, detail="Webhook secret must be at least 16 characters")
+    # Save secret via KV if available, else fallback to env write (handled elsewhere)
+    if secret:
+        kv_set("TEAMS_WEBHOOK_SECRET", secret)
+        os.environ["TEAMS_WEBHOOK_SECRET"] = secret
+    else:
+        # Delete secret if empty
+        kv_delete("TEAMS_WEBHOOK_SECRET")
+        os.environ.pop("TEAMS_WEBHOOK_SECRET", None)
+        secret = ""
+    secret_configured = bool(secret)
+    secret_preview = secret[:4] + "****" if secret else ""
+    return {"status": "success", "secret_configured": secret_configured, "secret_preview": secret_preview}
+
+
+
+@app.delete("/settings/webhook/secret")
+def delete_webhook_secret(user: dict = Depends(get_current_user)):
+    kv_delete("TEAMS_WEBHOOK_SECRET")
+    os.environ.pop("TEAMS_WEBHOOK_SECRET", None)
+    return {"status": "deleted"}
+
 # DASHBOARD SUMMARY
 # ============================================================
 @app.get("/dashboard")

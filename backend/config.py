@@ -50,7 +50,7 @@ SHAREPOINT = {
 # ============================================================
 BC = {
     "environment":  os.environ.get("BC_ENVIRONMENT", "production"),
-    "company_name": os.environ.get("BC_COMPANY_NAME", "YOUR_COMPANY_NAME"),
+    "company_name": os.environ.get("BC_COMPANY_NAME", "Xarka AI Technologies"),
     "base_url":     "https://api.businesscentral.dynamics.com/v2.0",
 }
 

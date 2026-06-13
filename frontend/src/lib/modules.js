@@ -73,6 +73,7 @@ export const MODULES = [
       { id: "connections", label: "Connections" },
       { id: "azure", label: "Azure" },
       { id: "bc365", label: "BC365" },
+      { id: "webhooks", label: "Webhooks" },
     ],
   },
 ];

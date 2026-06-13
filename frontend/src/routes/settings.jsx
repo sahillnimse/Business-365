@@ -1,7 +1,134 @@
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { apiGet, setAuthToken, loadStoredToken } from "@/lib/api";
+import { apiGet, apiPostJSON, apiDelete, setAuthToken, loadStoredToken } from "@/lib/api";
+import { Spinner, ErrBox } from "@/components/ui-bits";
+import { PageHeader, TabBar } from "@/components/TabBar";
+import { Save, KeyRound, CloudLightning, RotateCw } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
+
+export default function SettingsPage() {
+  const [searchParams] = useSearchParams();
+  const tab = searchParams.get("tab") || "connections";
+  return (
+    <div>
+      <PageHeader title="Settings" subtitle="Configure how the validator reaches your data." />
+      <TabBar moduleId="settings" activeTab={tab} />
+      {tab === "connections" && <ConnectionsTab />}
+      {tab === "azure" && <AzureTab />}
+      {tab === "bc365" && <Bc365Tab />}
+      {tab === "webhooks" && <WebhooksTab />}
+    </div>
+  );
+}
+
+function WebhooksTab() {
+  const q = useQuery({ queryKey: ["webhook-settings"], queryFn: () => apiGet("/settings/webhook") });
+  const [generating, setGenerating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState(null);
+
+  const generateSecret = () => {
+    const array = new Uint8Array(24);
+    crypto.getRandomValues(array);
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let secret = "";
+    array.forEach((c) => (secret += chars[c % chars.length]));
+    return secret;
+  };
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setError(null);
+    try {
+      const secret = generateSecret();
+      await apiPostJSON("/settings/webhook", { secret });
+      toast.success("Webhook secret generated and saved.");
+      q.refetch();
+    } catch (e) {
+      setError(e.message);
+      toast.error("Failed to generate webhook secret.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setError(null);
+    try {
+      await apiDelete("/settings/webhook/secret");
+      toast.success("Webhook secret deleted.");
+      q.refetch();
+    } catch (e) {
+      setError(e.message);
+      toast.error("Failed to delete webhook secret.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  if (q.isLoading) return <Spinner />;
+  if (q.error) return <ErrBox error={q.error} />;
+
+  const { webhook_url, secret_configured, secret_preview, storage_backend } = q.data ?? {};
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-2">
+      <Card title="Webhook URL" subtitle="Endpoint used by Teams to trigger PO validation.">
+        <div className="space-y-3">
+          <Field label="URL">
+            <code className="block rounded-md bg-muted px-3 py-2 text-xs">{webhook_url}</code>
+          </Field>
+        </div>
+      </Card>
+
+      <Card title="Webhook Secret" subtitle="Secret used to authenticate webhook calls.">
+        <div className="space-y-3">
+          <Field label="Configured">
+            {secret_configured ? "Yes" : "No"}
+          </Field>
+          {secret_configured && (
+            <Field label="Preview">
+              <code className="block rounded-md bg-muted px-3 py-2 text-xs">{secret_preview}</code>
+            </Field>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              <RotateCw className="h-4 w-4" />
+              {generating ? "Generating..." : "Generate Random"}
+            </button>
+            {secret_configured && (
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="inline-flex items-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                <KeyRound className="h-4 w-4" />
+                {deleting ? "Deleting..." : "Delete Secret"}
+              </button>
+            )}
+          </div>
+          {error && (
+            <div className="mt-2 text-xs text-destructive">{error}</div>
+          )}
+        </div>
+      </Card>
+
+      <Card title="Storage Backend" subtitle="Where the secret is stored.">
+        <Field label="Backend">
+          {storage_backend}
+        </Field>
+      </Card>
+    </div>
+  );
+}
+
 import { Spinner, ErrBox } from "@/components/ui-bits";
 import { PageHeader, TabBar } from "@/components/TabBar";
 import { Save, KeyRound, CloudLightning } from "lucide-react";
