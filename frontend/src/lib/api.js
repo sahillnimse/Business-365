@@ -144,7 +144,7 @@ export async function apiDelete(path) {
   return res.json();
 }
 
-  if (!API_CONFIGURED) {
+
     throw new Error("Backend not configured. Set VITE_API_URL in .env to your FastAPI service URL.");
   }
 
