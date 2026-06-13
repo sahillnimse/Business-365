@@ -176,3 +176,6 @@ export async function apiDelete(path) {
   }
   return res.json();
 }
+
+// Alias for backward compatibility with upload.jsx
+export { apiPostFormData as apiPostForm };
