@@ -116,35 +116,8 @@ export async function apiPostJSON(path, body) {
   return res.json();
 }
 
-export async function apiDelete(path) {
+export async function apiPostFormData(path, formData) {
   if (!API_CONFIGURED) {
-    throw new Error("Backend not configured. Set VITE_API_URL in .env to your FastAPI service URL.");
-  }
-
-  const res = await fetch(buildUrl(path), {
-    method: "DELETE",
-    headers: buildRequestHeaders(),
-  });
-  if (res.status === 401) {
-    clearAuthToken();
-    throw new Error("Session expired. Please sign in again.");
-  }
-  if (!res.ok) {
-    let detail = `${res.status} ${res.statusText}`;
-    try {
-      const json = await res.json();
-      if (json?.detail) {
-        detail = typeof json.detail === "string" ? json.detail : JSON.stringify(json.detail);
-      }
-    } catch {
-      /* ignore non-JSON error bodies */
-    }
-    throw new Error(detail);
-  }
-  return res.json();
-}
-
-
     throw new Error("Backend not configured. Set VITE_API_URL in .env to your FastAPI service URL.");
   }
 
@@ -173,5 +146,33 @@ export async function apiDelete(path) {
     throw new Error(detail);
   }
 
+  return res.json();
+}
+
+export async function apiDelete(path) {
+  if (!API_CONFIGURED) {
+    throw new Error("Backend not configured. Set VITE_API_URL in .env to your FastAPI service URL.");
+  }
+
+  const res = await fetch(buildUrl(path), {
+    method: "DELETE",
+    headers: buildRequestHeaders(),
+  });
+  if (res.status === 401) {
+    clearAuthToken();
+    throw new Error("Session expired. Please sign in again.");
+  }
+  if (!res.ok) {
+    let detail = `${res.status} ${res.statusText}`;
+    try {
+      const json = await res.json();
+      if (json?.detail) {
+        detail = typeof json.detail === "string" ? json.detail : JSON.stringify(json.detail);
+      }
+    } catch {
+      /* ignore non-JSON error bodies */
+    }
+    throw new Error(detail);
+  }
   return res.json();
 }
