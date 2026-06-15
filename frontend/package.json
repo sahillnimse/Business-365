@@ -15,6 +15,7 @@
     "@azure/msal-browser": "^2.39.0",
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/react-query": "^5.83.0",
+    "@vercel/analytics": "^2.0.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.575.0",
     "react": "^19.2.0",
