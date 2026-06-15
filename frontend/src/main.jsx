@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Analytics } from "@vercel/analytics/react";
 import { ThemeProvider } from "@/lib/theme";
 import { AuthProvider } from "@/context/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
@@ -38,6 +39,7 @@ function App() {
           </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>
+      <Analytics />
     </BrowserRouter>
   );
 }
