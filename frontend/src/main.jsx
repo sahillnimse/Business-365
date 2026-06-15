@@ -2,9 +2,12 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Analytics } from "@vercel/analytics/react";
+
 import { ThemeProvider } from "@/lib/theme";
 import { AuthProvider } from "@/context/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
+
 import DashboardPage from "@/routes/index";
 import ValidationPage from "@/routes/validation";
 import UploadPage from "@/routes/upload";
@@ -13,8 +16,8 @@ import PurchasingPage from "@/routes/purchasing";
 import FinancePage from "@/routes/finance";
 import SettingsPage from "@/routes/settings";
 import ProfilePage from "@/routes/profile";
+
 import "./styles.css";
-import { Analytics } from "@vercel/analytics/react";
 
 const queryClient = new QueryClient();
 
@@ -39,14 +42,16 @@ function App() {
           </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>
+
+      <Analytics />
     </BrowserRouter>
   );
 }
 
 const rootElement = document.getElementById("root");
-if (!rootElement.innerHTML) {
-  const root = ReactDOM.createRoot(rootElement);
-  root.render(
+
+if (rootElement) {
+  ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
       <App />
     </React.StrictMode>
