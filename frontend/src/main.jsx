@@ -14,6 +14,7 @@ import FinancePage from "@/routes/finance";
 import SettingsPage from "@/routes/settings";
 import ProfilePage from "@/routes/profile";
 import "./styles.css";
+import { Analytics } from "@vercel/analytics/react";
 
 const queryClient = new QueryClient();
 

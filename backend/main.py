@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Depends, Request, Body, File, Upload
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from datetime import datetime, timezone, timedelta
+import os
 import jwt
 from backend.kv_store import kv_get, kv_set, kv_delete
 import pandas as pd
