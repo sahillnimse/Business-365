@@ -3,11 +3,12 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/react";;
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import { ThemeProvider } from "@/lib/theme";
 import { AuthProvider } from "@/context/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 import DashboardPage from "@/routes/index";
 import ValidationPage from "@/routes/validation";
@@ -17,6 +18,7 @@ import PurchasingPage from "@/routes/purchasing";
 import FinancePage from "@/routes/finance";
 import SettingsPage from "@/routes/settings";
 import ProfilePage from "@/routes/profile";
+import NotFoundPage from "@/routes/not-found";
 
 import "./styles.css";
 
@@ -28,18 +30,22 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <AuthProvider>
-            <Routes>
-              <Route element={<AppLayout />}>
-                <Route index element={<DashboardPage />} />
-                <Route path="validation" element={<ValidationPage />} />
-                <Route path="upload" element={<UploadPage />} />
-                <Route path="inventory" element={<InventoryPage />} />
-                <Route path="purchasing" element={<PurchasingPage />} />
-                <Route path="finance" element={<FinancePage />} />
-                <Route path="settings" element={<SettingsPage />} />
-                <Route path="profile" element={<ProfilePage />} />
-              </Route>
-            </Routes>
+            <ErrorBoundary>
+              <Routes>
+                <Route element={<AppLayout />}>
+                  <Route index element={<DashboardPage />} />
+                  <Route path="validation" element={<ValidationPage />} />
+                  <Route path="upload" element={<UploadPage />} />
+                  <Route path="inventory" element={<InventoryPage />} />
+                  <Route path="purchasing" element={<PurchasingPage />} />
+                  <Route path="finance" element={<FinancePage />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                  <Route path="profile" element={<ProfilePage />} />
+                  {/* Catch-all 404 — must stay last */}
+                  <Route path="*" element={<NotFoundPage />} />
+                </Route>
+              </Routes>
+            </ErrorBoundary>
           </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>
