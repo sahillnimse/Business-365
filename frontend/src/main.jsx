@@ -45,6 +45,7 @@ function App() {
       </QueryClientProvider>
 
       <Analytics />
+      <SpeedInsights />
     </BrowserRouter>
   );
 }
